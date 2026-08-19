@@ -46,11 +46,9 @@ import { SKILL_DIR, SKILL_SCOPE, readSkillSupportingFile, writeSkillSupportingFi
 import { getSkillSources, discoverSkills, mergeDiscoveredSkills, createSkill, updateSkill, deleteSkill, renameSkill, isManagedSkillPath } from './skills.js';
 import { getCuratedSkillsSources } from '../skills-catalog/curated-sources.js';
 import { getCacheKey, getCachedScan, setCachedScan } from '../skills-catalog/cache.js';
-import { isClawdHubSource, parseSkillRepoSource } from '../skills-catalog/source.js';
+import { parseSkillRepoSource } from '../skills-catalog/source.js';
 import { scanSkillsRepository } from '../skills-catalog/scan.js';
 import { installSkillsFromRepository } from '../skills-catalog/install.js';
-import { scanClawdHubPage } from '../skills-catalog/clawdhub/scan.js';
-import { installSkillsFromClawdHub } from '../skills-catalog/clawdhub/install.js';
 
 export const createFeatureRoutesRuntime = (dependencies) => {
   const {
@@ -292,9 +290,6 @@ export const createFeatureRoutesRuntime = (dependencies) => {
       parseSkillRepoSource,
       scanSkillsRepository,
       installSkillsFromRepository,
-      scanClawdHubPage,
-      installSkillsFromClawdHub,
-      isClawdHubSource,
       getProfiles,
       getProfile,
     });

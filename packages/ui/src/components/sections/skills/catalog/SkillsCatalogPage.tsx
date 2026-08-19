@@ -80,12 +80,9 @@ export const SkillsCatalogPage: React.FC<SkillsCatalogPageProps> = ({ mode, onMo
     setSelectedSource,
     loadCatalog,
     loadSource,
-    loadMoreClawdHub,
     isLoadingCatalog,
     isLoadingSource,
-    isLoadingMore,
     loadedSourceIds,
-    clawdhubHasMoreBySource,
     lastCatalogError,
   } = useSkillsCatalogStore(useShallow((s) => ({
     sources: s.sources,
@@ -94,12 +91,9 @@ export const SkillsCatalogPage: React.FC<SkillsCatalogPageProps> = ({ mode, onMo
     setSelectedSource: s.setSelectedSource,
     loadCatalog: s.loadCatalog,
     loadSource: s.loadSource,
-    loadMoreClawdHub: s.loadMoreClawdHub,
     isLoadingCatalog: s.isLoadingCatalog,
     isLoadingSource: s.isLoadingSource,
-    isLoadingMore: s.isLoadingMore,
     loadedSourceIds: s.loadedSourceIds,
-    clawdhubHasMoreBySource: s.clawdhubHasMoreBySource,
     lastCatalogError: s.lastCatalogError,
   })));
 
@@ -142,10 +136,6 @@ export const SkillsCatalogPage: React.FC<SkillsCatalogPageProps> = ({ mode, onMo
   const selectedSource = React.useMemo(() => sources.find((s) => s.id === selectedSourceId) || null, [sources, selectedSourceId]);
 
   const isCustomSource = Boolean(selectedSourceId && selectedSourceId.startsWith('custom:'));
-  const isClawdHubSource = selectedSource?.source === 'clawdhub:registry' || selectedSource?.sourceType === 'clawdhub';
-  const hasMoreClawdHub = Boolean(
-    selectedSourceId && (clawdhubHasMoreBySource[selectedSourceId] ?? true)
-  );
 
   const removeSelectedCatalog = async () => {
     if (!selectedSourceId || !isCustomSource) {
@@ -326,25 +316,6 @@ export const SkillsCatalogPage: React.FC<SkillsCatalogPageProps> = ({ mode, onMo
                             <div className="typography-meta text-muted-foreground/50 mt-0.5 italic">{t('settings.skills.catalog.shared.noDescription')}</div>
                           )}
 
-                          {item.clawdhub && (
-                            <div className="typography-micro text-muted-foreground mt-1.5 flex items-center gap-3">
-                              {item.clawdhub.owner && (
-                                <span>{t('settings.skills.catalog.page.byOwnerPrefix')} <span className="font-medium text-foreground/80">{item.clawdhub.owner}</span></span>
-                              )}
-                              <span className="flex items-center gap-1">
-                                <Icon name="download" className="h-3 w-3" />
-                                {item.clawdhub.downloads?.toLocaleString() ?? 0}
-                              </span>
-                              {(item.clawdhub.stars ?? 0) > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Icon name="star" className="h-3 w-3" />
-                                  {item.clawdhub.stars}
-                                </span>
-                              )}
-                              <span className="bg-[var(--surface-muted)] px-1.5 py-0.5 rounded">v{item.clawdhub.version}</span>
-                            </div>
-                          )}
-
                           {item.warnings?.length ? (
                             <div className="typography-micro text-[var(--status-warning)] mt-1.5 bg-[var(--status-warning)]/10 px-2 py-1 rounded w-fit">
                               {item.warnings.join(' · ')}
@@ -370,19 +341,6 @@ export const SkillsCatalogPage: React.FC<SkillsCatalogPageProps> = ({ mode, onMo
                 })}
               </div>
             )}
-          {isClawdHubSource && hasMoreClawdHub && !isLoadingSource && filtered.length > 0 && (
-            <div className="flex justify-center mt-2">
-              <Button
-                variant="outline"
-                size="xs"
-                className="!font-normal"
-                onClick={() => void loadMoreClawdHub()}
-                disabled={isLoadingMore}
-              >
-                {isLoadingMore ? t('settings.skills.catalog.page.loading.more') : t('settings.skills.catalog.page.actions.loadMoreSkills')}
-              </Button>
-            </div>
-          )}
         </SettingsSection>
       </SettingsPageLayout>
 

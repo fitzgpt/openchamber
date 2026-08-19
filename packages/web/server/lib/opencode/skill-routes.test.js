@@ -74,9 +74,6 @@ const startSkillsApp = ({ projectRoot }) => {
     parseSkillRepoSource: () => ({ ok: false }),
     scanSkillsRepository: async () => ({ ok: false }),
     installSkillsFromRepository: async () => ({ ok: false }),
-    scanClawdHubPage: async () => ({ ok: false }),
-    installSkillsFromClawdHub: async () => ({ ok: false }),
-    isClawdHubSource: () => false,
     getProfiles: () => [],
     getProfile: () => null,
   });

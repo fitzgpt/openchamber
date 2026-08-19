@@ -29,13 +29,6 @@ const FALLBACK_SOURCES: SkillsCatalogSource[] = [
     defaultSubpath: 'skills',
     sourceType: 'github',
   },
-  {
-    id: 'clawdhub',
-    label: 'ClawHub',
-    description: 'Community skill registry with vector search',
-    source: 'clawdhub:registry',
-    sourceType: 'clawdhub',
-  },
 ];
 
 const SKILLS_CATALOG_LOAD_CACHE_TTL_MS = 5000;
@@ -71,13 +64,10 @@ export interface SkillsCatalogState {
   sources: SkillsCatalogSource[];
   itemsBySource: Record<string, SkillsCatalogItem[]>;
   selectedSourceId: string | null;
-  pageInfoBySource: Record<string, { nextCursor?: string | null }>;
   loadedSourceIds: Record<string, boolean>;
-  clawdhubHasMoreBySource: Record<string, boolean>;
 
   isLoadingCatalog: boolean;
   isLoadingSource: boolean;
-  isLoadingMore: boolean;
   isScanning: boolean;
   isInstalling: boolean;
 
@@ -91,7 +81,6 @@ export interface SkillsCatalogState {
 
   loadCatalog: (options?: { refresh?: boolean }) => Promise<boolean>;
   loadSource: (sourceId: string, options?: { refresh?: boolean }) => Promise<boolean>;
-  loadMoreClawdHub: () => Promise<boolean>;
   scanRepo: (request: SkillsRepoScanRequest) => Promise<SkillsRepoScanResponse>;
   installSkills: (request: SkillsInstallRequest, options?: { directory?: string | null }) => Promise<SkillsInstallResponse>;
 }
@@ -102,13 +91,10 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
       sources: FALLBACK_SOURCES,
       itemsBySource: {},
       selectedSourceId: FALLBACK_SOURCES[0]?.id ?? null,
-      pageInfoBySource: {},
       loadedSourceIds: {},
-      clawdhubHasMoreBySource: {},
 
       isLoadingCatalog: false,
       isLoadingSource: false,
-      isLoadingMore: false,
       isScanning: false,
       isInstalling: false,
 
@@ -141,9 +127,7 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
           const previous = {
             sources: get().sources,
             itemsBySource: get().itemsBySource,
-            pageInfoBySource: get().pageInfoBySource,
             loadedSourceIds: get().loadedSourceIds,
-            clawdhubHasMoreBySource: get().clawdhubHasMoreBySource,
           };
 
           let lastError: SkillsCatalogResponse['error'] | null = null;
@@ -168,9 +152,7 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
 
               const sources = (payload.sources && payload.sources.length > 0) ? payload.sources : previous.sources;
               const itemsBySource = options?.refresh ? {} : (get().itemsBySource || {});
-              const pageInfoBySource = options?.refresh ? {} : (get().pageInfoBySource || {});
               const loadedSourceIds = options?.refresh ? {} : (get().loadedSourceIds || {});
-              const clawdhubHasMoreBySource = options?.refresh ? {} : (get().clawdhubHasMoreBySource || {});
               const currentSelected = get().selectedSourceId;
               const selectedSourceId =
                 (currentSelected && sources.some((s) => s.id === currentSelected))
@@ -180,9 +162,7 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
               set({
                 sources,
                 itemsBySource,
-                pageInfoBySource,
                 loadedSourceIds,
-                clawdhubHasMoreBySource,
                 selectedSourceId,
               });
 
@@ -197,9 +177,7 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
             set({
               sources: previous.sources,
               itemsBySource: previous.itemsBySource,
-              pageInfoBySource: previous.pageInfoBySource,
               loadedSourceIds: previous.loadedSourceIds,
-              clawdhubHasMoreBySource: previous.clawdhubHasMoreBySource,
               lastCatalogError: lastError || { kind: 'unknown', message: 'Failed to load catalog' },
             });
 
@@ -248,9 +226,7 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
             if (fallback.ok && fallbackPayload?.ok && Array.isArray(fallbackItems)) {
               set((state) => ({
                 itemsBySource: { ...state.itemsBySource, [sourceId]: fallbackItems },
-                pageInfoBySource: { ...state.pageInfoBySource, [sourceId]: { nextCursor: null } },
                 loadedSourceIds: { ...state.loadedSourceIds, [sourceId]: true },
-                clawdhubHasMoreBySource: { ...state.clawdhubHasMoreBySource, [sourceId]: false },
               }));
               return true;
             }
@@ -262,16 +238,10 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
           }
 
           const items = payload?.items || [];
-          const nextCursor = payload?.nextCursor ?? null;
 
           set((state) => ({
             itemsBySource: { ...state.itemsBySource, [sourceId]: items },
-            pageInfoBySource: { ...state.pageInfoBySource, [sourceId]: { nextCursor } },
             loadedSourceIds: { ...state.loadedSourceIds, [sourceId]: true },
-            clawdhubHasMoreBySource: {
-              ...state.clawdhubHasMoreBySource,
-              [sourceId]: items.length > 0,
-            },
           }));
 
           return true;
@@ -282,76 +252,6 @@ export const useSkillsCatalogStore = create<SkillsCatalogState>()(
           return false;
         } finally {
           set({ isLoadingSource: false });
-        }
-      },
-
-      loadMoreClawdHub: async () => {
-        const selectedSourceId = get().selectedSourceId;
-        if (!selectedSourceId) {
-          return false;
-        }
-
-        const pageInfo = get().pageInfoBySource[selectedSourceId];
-        const cursor = pageInfo?.nextCursor || null;
-
-        set({ isLoadingMore: true });
-        try {
-          const currentDirectory = getRequestDirectory();
-          const parts = [`sourceId=${encodeURIComponent(selectedSourceId)}`];
-          if (currentDirectory) {
-            parts.push(`directory=${encodeURIComponent(currentDirectory)}`);
-          }
-          if (cursor) {
-            parts.push(`cursor=${encodeURIComponent(cursor)}`);
-          }
-          const queryParams = `?${parts.join('&')}`;
-
-          const response = await runtimeFetch(`/api/config/skills/catalog/source${queryParams}`, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-          });
-
-          const payload = (await response.json().catch(() => null)) as SkillsCatalogSourceResponse | null;
-          if (!response.ok || !payload?.ok) {
-            return false;
-          }
-
-          const nextCursor = payload.nextCursor ?? null;
-          const currentItems = get().itemsBySource[selectedSourceId] || [];
-          const items = payload.items || [];
-          const merged = new Map(currentItems.map((item) => [`${item.sourceId}:${item.skillDir}`, item]));
-          let newCount = 0;
-
-          for (const item of items) {
-            const key = `${item.sourceId}:${item.skillDir}`;
-            if (!merged.has(key)) {
-              newCount += 1;
-            }
-            merged.set(key, item);
-          }
-
-          const noMore = items.length === 0 || newCount === 0;
-
-          set((state) => ({
-            itemsBySource: {
-              ...state.itemsBySource,
-              [selectedSourceId]: Array.from(merged.values()),
-            },
-            pageInfoBySource: {
-              ...state.pageInfoBySource,
-              [selectedSourceId]: { nextCursor },
-            },
-            clawdhubHasMoreBySource: {
-              ...state.clawdhubHasMoreBySource,
-              [selectedSourceId]: !noMore,
-            },
-          }));
-
-          return true;
-        } catch {
-          return false;
-        } finally {
-          set({ isLoadingMore: false });
         }
       },
 

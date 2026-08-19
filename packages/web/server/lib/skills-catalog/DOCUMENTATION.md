@@ -1,21 +1,16 @@
 # Skills Catalog Module Documentation
 
 ## Purpose
-This module provides skill discovery, scanning, and installation capabilities for OpenCode. It supports multiple skill sources including git repositories and the ClawHub registry, with caching and conflict resolution for skill installation.
+This module provides skill discovery, scanning, and installation capabilities for OpenCode. It supports skill sources backed by git repositories, with caching and conflict resolution for skill installation.
 
 ## Entrypoints and structure
 - `packages/web/server/lib/skills-catalog/`: Skills catalog module directory containing all skill-related functionality.
   - `cache.js`: In-memory cache for scan results with TTL support.
-  - `curated-sources.js`: Predefined skill sources (Anthropic, ClawHub).
+  - `curated-sources.js`: Predefined skill sources (Anthropic).
   - `git.js`: Git operations helpers for cloning and auth error detection.
   - `install.js`: Skills installation from git repositories.
   - `scan.js`: Skills scanning from git repositories.
   - `source.js`: Source string parsing for git repositories.
-  - `clawdhub/`: ClawHub registry integration.
-    - `index.js`: Public API exports for ClawHub.
-    - `scan.js`: Scanning ClawHub registry with pagination.
-    - `install.js`: Installation from ClawHub (ZIP download).
-    - `api.js`: ClawHub API client with rate limiting.
 
 ## Public API
 
@@ -28,7 +23,7 @@ The following functions are exported and used by the web server:
 - `clearCache()`: Clear all cached scan results.
 
 ### Curated Sources (`curated-sources.js`)
-- `getCuratedSkillsSources()`: Return list of curated skill sources (Anthropic, ClawHub).
+- `getCuratedSkillsSources()`: Return list of curated skill sources (Anthropic).
 - `CURATED_SKILLS_SOURCES`: Constant array of predefined sources.
 
 ### Source Parsing (`source.js`)
@@ -40,20 +35,6 @@ The following functions are exported and used by the web server:
 ### Git Repository Installation (`install.js`)
 - `installSkillsFromRepository({ source, subpath, defaultSubpath, identity, scope, targetSource, workingDirectory, userSkillDir, selections, conflictPolicy, conflictDecisions })`: Install skills from git repository. Supports user/project scopes, opencode/agents targets, conflict resolution (prompt/skipAll/overwriteAll), and sparse checkout for efficiency.
 
-### ClawHub Integration (`clawdhub/index.js`)
-- `isClawdHubSource(source)`: Check if source string refers to ClawHub.
-- `scanClawdHub()`: Scan entire ClawHub registry for all skills (paginated, max 20 pages).
-- `scanClawdHubPage({ cursor })`: Scan a single page of ClawHub results with cursor-based pagination.
-- `installSkillsFromClawdHub({ scope, targetSource, workingDirectory, userSkillDir, selections, conflictPolicy, conflictDecisions })`: Install skills from ClawHub by downloading ZIP files.
-- `fetchClawdHubSkills({ cursor })`: Fetch paginated skills list from ClawHub API.
-- `fetchClawdHubSkillVersion(slug, version)`: Fetch specific skill version details.
-- `fetchClawdHubSkillInfo(slug)`: Fetch skill metadata without version details.
-- `downloadClawdHubSkill(slug, version)`: Download skill package as ZIP buffer.
-
-### ClawHub Constants (`clawdhub/index.js`)
-- `CLAWDHUB_SOURCE_ID`: Source identifier for curated sources.
-- `CLAWDHUB_SOURCE_STRING`: Source string format.
-
 ## Internal Helpers
 
 The following functions are internal helpers used by exported functions:
@@ -63,10 +44,10 @@ The following functions are internal helpers used by exported functions:
 - `looksLikeAuthError(message)`: Detect if error message indicates authentication failure (permission denied, publickey, etc.).
 - `assertGitAvailable()`: Check if git is available in PATH.
 
-### Skill Name Validation (used in `install.js`, `scan.js`, `clawdhub/install.js`)
+### Skill Name Validation (used in `install.js`, `scan.js`)
 - `validateSkillName(skillName)`: Validate skill name against pattern `/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/` (1-64 chars, lowercase alphanumeric with hyphens).
 
-### File System Helpers (`install.js`, `scan.js`, `clawdhub/install.js`)
+### File System Helpers (`install.js`, `scan.js`)
 - `safeRm(dir)`: Safely remove directory recursively (ignores errors).
 - `ensureDir(dirPath)`: Ensure directory exists with recursive creation.
 - `copyDirectoryNoSymlinks(srcDir, dstDir)`: Copy directory contents without symlinks, with path traversal protection.
@@ -82,10 +63,6 @@ The following functions are internal helpers used by exported functions:
 - `toFsPath(repoDir, repoRelPosixPath)`: Convert POSIX path to filesystem path.
 - `getTargetSkillDir({ scope, targetSource, workingDirectory, userSkillDir, skillName })`: Determine target installation directory based on scope (user/project), targetSource (opencode/agents), and skill name.
 
-### ClawHub API Helpers (`clawdhub/api.js`)
-- `rateLimitedFetch(url, options)`: Fetch with rate limiting (120 req/min limit, 100ms delay between requests, exponential backoff on 429/500 errors).
-- `mapClawdHubItem(item)`: Transform ClawHub API response to SkillsCatalogItem format.
-
 ## Response Contracts
 
 ### Scan Skills Repository Response
@@ -100,12 +77,6 @@ The following functions are internal helpers used by exported functions:
 - `installed`: Array of installed skills with `{ skillName, scope, source }`.
 - `skipped`: Array of skipped skills with `{ skillName, reason }`.
 - `error`: Error object with `{ kind, message, conflicts? }` on failure. Kinds: `authRequired`, `networkError`, `conflicts`, `invalidSource`, `unknown`.
-
-### ClawHub Scan Response
-- `ok`: Boolean indicating success.
-- `items`: Array of skill items with ClawHub-specific metadata in `clawdhub` property.
-- `nextCursor`: Pagination cursor for next page (only for `scanClawdHubPage`).
-- `error`: Error object with `{ kind, message }` on failure.
 
 ### Parse Source Response
 - `ok`: Boolean indicating success.
@@ -129,7 +100,7 @@ The following functions are internal helpers used by exported functions:
 
 ### Skill Name Validation
 - All skill names must match `/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/` (1-64 chars).
-- Skill names are derived from directory basenames for git repos and slugs for ClawHub.
+- Skill names are derived from directory basenames for git repos.
 - Invalid names result in non-installable skills with appropriate warnings.
 
 ### Git Cloning Strategy
@@ -143,13 +114,6 @@ The following functions are internal helpers used by exported functions:
 - Three conflict policies: `prompt`, `skipAll`, `overwriteAll`.
 - Per-skill decisions override global policy via `conflictDecisions` map.
 - Conflict response includes `{ skillName, scope, source }` for each conflict.
-
-### ClawHub Integration
-- ClawHub API base URL: `https://clawdhub.com/api/v1`.
-- Pagination uses cursor-based approach with `MAX_PAGES=20` safety limit.
-- Rate limiting: 120 req/min with 100ms delay between requests.
-- Downloaded skills are extracted from ZIP files using `adm-zip`.
-- Always validate `SKILL.md` exists before installation.
 
 ### Cache Management
 - Cache keys include `normalizedRepo`, `subpath`, and `identityId` for isolation.

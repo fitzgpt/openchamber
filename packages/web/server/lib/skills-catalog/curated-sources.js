@@ -7,13 +7,6 @@ const CURATED_SKILLS_SOURCES = [
     defaultSubpath: 'skills',
     sourceType: 'github',
   },
-  {
-    id: 'clawdhub',
-    label: 'ClawHub',
-    description: 'Community skill registry with vector search',
-    source: 'clawdhub:registry',
-    sourceType: 'clawdhub',
-  },
 ];
 
 export function getCuratedSkillsSources() {

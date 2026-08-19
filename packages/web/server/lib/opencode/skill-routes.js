@@ -45,9 +45,6 @@ export const registerSkillRoutes = (app, dependencies) => {
     parseSkillRepoSource,
     scanSkillsRepository,
     installSkillsFromRepository,
-    scanClawdHubPage,
-    installSkillsFromClawdHub,
-    isClawdHubSource,
     getProfiles,
     getProfile,
   } = dependencies;
@@ -327,7 +324,6 @@ export const registerSkillRoutes = (app, dependencies) => {
       }
 
       const refresh = String(req.query.refresh || '').toLowerCase() === 'true';
-      const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : null;
 
       const curatedSources = getCuratedSkillsSources();
       const settings = await readSettingsFromDisk();
@@ -354,26 +350,6 @@ export const registerSkillRoutes = (app, dependencies) => {
         discoverSkills(directory),
       );
       const installedByName = new Map(resolvedDiscovered.map((s) => [s.name, s]));
-
-      if (src.sourceType === 'clawdhub' || isClawdHubSource(src.source)) {
-        const scanned = await scanClawdHubPage({ cursor: cursor || null });
-        if (!scanned.ok) {
-          return res.status(500).json({ ok: false, error: scanned.error });
-        }
-
-        const items = (scanned.items || []).map((item) => {
-          const installed = installedByName.get(item.skillName);
-          return {
-            ...item,
-            sourceId: src.id,
-            installed: installed
-              ? { isInstalled: true, scope: installed.scope, source: installed.source }
-              : { isInstalled: false },
-          };
-        });
-
-        return res.json({ ok: true, items, nextCursor: scanned.nextCursor || null });
-      }
 
       const parsed = parseSkillRepoSource(src.source);
       if (!parsed.ok) {
@@ -481,41 +457,6 @@ export const registerSkillRoutes = (app, dependencies) => {
           });
         }
         workingDirectory = resolved.directory;
-      }
-
-      if (isClawdHubSource(source)) {
-        const result = await installSkillsFromClawdHub({
-          scope,
-          targetSource,
-          workingDirectory,
-          userSkillDir: SKILL_DIR,
-          selections,
-          conflictPolicy,
-          conflictDecisions,
-        });
-
-        if (!result.ok) {
-          if (result.error?.kind === 'conflicts') {
-            return res.status(409).json({ ok: false, error: result.error });
-          }
-          return res.status(400).json({ ok: false, error: result.error });
-        }
-
-        const installed = result.installed || [];
-        const skipped = result.skipped || [];
-        const requiresRestart = installed.length > 0;
-
-        return res.json({
-          ok: true,
-          installed,
-          skipped,
-          ...(requiresRestart
-            ? buildDeferredRestartResponse('Skills installed successfully. Restart OpenCode to apply.')
-            : {
-              requiresReload: false,
-              message: 'No skills were installed',
-            }),
-        });
       }
 
       const identity = resolveGitIdentity(gitIdentityId);
