@@ -45,6 +45,17 @@ describe('fetchGitHubRepoMetas', () => {
     expect(metas).toEqual({ 'anthropics/skills': null });
   });
 
+  it('caches failed lookups briefly to avoid repeat hits', async () => {
+    const fetchMock = vi.fn(async () => new Response('rate limited', { status: 403 }));
+    globalThis.fetch = fetchMock;
+
+    await fetchGitHubRepoMetas(['anthropics/skills']);
+    const second = await fetchGitHubRepoMetas(['anthropics/skills']);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(second).toEqual({ 'anthropics/skills': { stars: null, repoUpdatedAt: null } });
+  });
+
   it('deduplicates repositories', async () => {
     const fetchMock = vi.fn(async () => new Response(
       JSON.stringify({ stargazers_count: 1, pushed_at: null }),

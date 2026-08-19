@@ -38,7 +38,7 @@ export const writeDiskCache = (fileName, data) => {
   const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(tempPath, JSON.stringify(data), 'utf8');
+    fs.writeFileSync(tempPath, JSON.stringify(data), { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(tempPath, filePath);
     return true;
   } catch {
