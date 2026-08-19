@@ -6,7 +6,8 @@ This module provides skill discovery, scanning, and installation capabilities fo
 ## Entrypoints and structure
 - `packages/web/server/lib/skills-catalog/`: Skills catalog module directory containing all skill-related functionality.
   - `cache.js`: In-memory cache for scan results with TTL support.
-  - `curated-sources.js`: Predefined skill sources (Anthropic).
+  - `curated-sources.js`: Predefined skill sources (Anthropic, OpenAI, Cursor, Matt Pocock).
+  - `github-meta.js`: Best-effort GitHub repository metadata (stars, last push) with in-memory TTL cache.
   - `git.js`: Git operations helpers for cloning and auth error detection.
   - `install.js`: Skills installation from git repositories.
   - `scan.js`: Skills scanning from git repositories.
@@ -19,12 +20,18 @@ The following functions are exported and used by the web server:
 ### Cache (`cache.js`)
 - `getCacheKey({ normalizedRepo, subpath, identityId })`: Generate cache key for scan results.
 - `getCachedScan(key)`: Retrieve cached scan result if not expired.
-- `setCachedScan(key, value, ttlMs)`: Store scan result with TTL (default 30 minutes).
+- `setCachedScan(key, value, ttlMs)`: Store scan result with TTL (default 3 hours).
+- `scanWithCache(key, loader, { refresh })`: Run a scan loader with cache lookup, in-flight deduplication, and a global concurrency limit (2 concurrent scans); only `ok: true` results are cached.
 - `clearCache()`: Clear all cached scan results.
+- Scan results persist to `skills-catalog-cache.json` in the OpenChamber data dir (debounced, atomic rename) and survive server restarts within the TTL.
 
 ### Curated Sources (`curated-sources.js`)
-- `getCuratedSkillsSources()`: Return list of curated skill sources (Anthropic).
+- `getCuratedSkillsSources()`: Return list of curated skill sources (Anthropic, OpenAI, Cursor, Matt Pocock).
 - `CURATED_SKILLS_SOURCES`: Constant array of predefined sources.
+
+### GitHub Repository Metadata (`github-meta.js`)
+- `fetchGitHubRepoMetas(normalizedRepos)`: Fetch `{ stars, repoUpdatedAt }` for GitHub `owner/repo` strings. Best-effort: failures resolve to `null`; in-flight requests deduplicate; results cached in memory and on disk (`skills-github-meta.json`) for three hours.
+- `clearGitHubMetaCache()`: Test-only cache reset.
 
 ### Source Parsing (`source.js`)
 - `parseSkillRepoSource(source, { subpath })`: Parse git repository source string into structured object with SSH/HTTPS clone URLs, normalized repo, and effective subpath. Supports SSH URLs, HTTPS URLs, and shorthand `owner/repo[/subpath]` format.
@@ -117,8 +124,10 @@ The following functions are internal helpers used by exported functions:
 
 ### Cache Management
 - Cache keys include `normalizedRepo`, `subpath`, and `identityId` for isolation.
-- Default TTL is 30 minutes; can be overridden via `ttlMs` parameter.
-- Cache is in-memory (not persisted across restarts).
+- Default TTL is 3 hours for both scan results and GitHub repository metadata.
+- Scan and GitHub metadata caches persist to JSON files in the OpenChamber data dir, so app restarts and page refreshes reuse previous results instead of re-hitting GitHub.
+- Scans run through a global concurrency limiter (2 at a time) with per-key in-flight deduplication.
+- The refresh button passes `refresh: true` and bypasses the cache.
 
 ### Security Considerations
 - Path traversal protection in `copyDirectoryNoSymlinks`: resolves real paths and checks containment.

@@ -69,11 +69,11 @@ const startSkillsApp = ({ projectRoot }) => {
     SKILL_DIR,
     getCuratedSkillsSources: () => [],
     getCacheKey: () => 'k',
-    getCachedScan: () => null,
-    setCachedScan: () => {},
+    scanWithCache: async (_key, loader) => loader(),
     parseSkillRepoSource: () => ({ ok: false }),
     scanSkillsRepository: async () => ({ ok: false }),
     installSkillsFromRepository: async () => ({ ok: false }),
+    fetchGitHubRepoMetas: async () => ({}),
     getProfiles: () => [],
     getProfile: () => null,
   });

@@ -45,10 +45,11 @@ import {
 import { SKILL_DIR, SKILL_SCOPE, readSkillSupportingFile, writeSkillSupportingFile, deleteSkillSupportingFile } from './shared.js';
 import { getSkillSources, discoverSkills, mergeDiscoveredSkills, createSkill, updateSkill, deleteSkill, renameSkill, isManagedSkillPath } from './skills.js';
 import { getCuratedSkillsSources } from '../skills-catalog/curated-sources.js';
-import { getCacheKey, getCachedScan, setCachedScan } from '../skills-catalog/cache.js';
+import { getCacheKey, scanWithCache } from '../skills-catalog/cache.js';
 import { parseSkillRepoSource } from '../skills-catalog/source.js';
 import { scanSkillsRepository } from '../skills-catalog/scan.js';
 import { installSkillsFromRepository } from '../skills-catalog/install.js';
+import { fetchGitHubRepoMetas } from '../skills-catalog/github-meta.js';
 
 export const createFeatureRoutesRuntime = (dependencies) => {
   const {
@@ -285,11 +286,11 @@ export const createFeatureRoutesRuntime = (dependencies) => {
       SKILL_DIR,
       getCuratedSkillsSources,
       getCacheKey,
-      getCachedScan,
-      setCachedScan,
+      scanWithCache,
       parseSkillRepoSource,
       scanSkillsRepository,
       installSkillsFromRepository,
+      fetchGitHubRepoMetas,
       getProfiles,
       getProfile,
     });
