@@ -33,6 +33,8 @@ import { runtimeFetch } from '@/lib/runtime-fetch';
 import { useI18n } from '@/lib/i18n';
 import { useLocalTTS } from '@/hooks/useLocalTTS';
 import { disposePreviewAudio } from './voicePreviewAudio';
+import { BrowserDictationTest } from './BrowserDictationTest';
+import { isBrowserDictationSupported } from '@/hooks/useBrowserDictation';
 
 const VOICE_TEXT_INPUT_CLASS = 'oc-surface-elevated w-full h-7 rounded-lg border border-input bg-surface-elevated px-2 typography-ui-label text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-interactive-border-focus';
 
@@ -1191,7 +1193,7 @@ export const VoiceSettings: React.FC = () => {
                                 <ul className="space-y-1">
                                     <li><strong>{t('settings.voice.page.provider.local')}</strong> {t('settings.voice.page.tooltip.sttLocal')}</li>
                                     <li><strong>{t('settings.voice.page.provider.server')}</strong> {t('settings.voice.page.tooltip.sttServer')}</li>
-                                    <li><strong>{t('settings.voice.page.provider.browser')}</strong> {t('settings.voice.page.tooltip.sttBrowser')}</li>
+                                    <li><strong>{t('settings.voice.page.provider.browser')}</strong> {t(isBrowserDictationSupported() ? 'settings.voice.page.tooltip.sttBrowser' : 'settings.voice.page.browserTest.unavailable')}</li>
                                 </ul>
                             )}
                         >
@@ -1203,10 +1205,12 @@ export const VoiceSettings: React.FC = () => {
                                 options={[
                                     { value: 'local', label: t('settings.voice.page.provider.local') },
                                     { value: 'openai-compatible', label: t('settings.voice.page.provider.server') },
-                                    { value: 'browser', label: t('settings.voice.page.provider.browser') },
+                                    { value: 'browser', label: t('settings.voice.page.provider.browser'), disabled: !isBrowserDictationSupported() },
                                 ]}
                             />
                         </SettingsControlGroup>
+
+                        {sttProvider === 'browser' && <BrowserDictationTest />}
 
                         {sttProvider === 'local' && (
                             <div className="space-y-1.5">
